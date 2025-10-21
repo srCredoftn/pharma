@@ -1,0 +1,107 @@
+================================================================================
+COMMANDES À EXÉCUTER DANS LE TERMINAL (COPIE/COLLE UNE À UNE)
+================================================================================
+
+IMPORTANT: Ouvre le terminal/CMD et va dans ton dossier projet d'abord
+cd chemin/vers/ton/projet
+
+================================================================================
+ÉTAPE 1: CRÉER LE DOSSIER POUR LES CSS
+================================================================================
+
+mkdir -p public/assets/css
+
+(Ceci crée un dossier qui stockera les fichiers CSS)
+
+================================================================================
+ÉTAPE 2: TÉLÉCHARGER LES CSS
+================================================================================
+
+COMMANDE 1 (Télécharger scripts.css):
+================================================================================
+curl -o public/assets/css/scripts.3e902af8.css "https://cdn.mesoigner.fr/dist/front_pharmacies/scripts.3e902af8.css"
+
+(Attends que le téléchargement se termine)
+
+================================================================================
+COMMANDE 2 (Télécharger mesoigner.css):
+================================================================================
+curl -o public/assets/css/mesoigner.6063c722.css "https://cdn.mesoigner.fr/dist/front_pharmacies/mesoigner.6063c722.css"
+
+(Attends que le téléchargement se termine)
+
+================================================================================
+ÉTAPE 3: VÉRIFIER QUE LES FICHIERS SONT LÀ
+================================================================================
+
+ls -lh public/assets/css/
+
+(Doit afficher: mesoigner.6063c722.css et scripts.3e902af8.css)
+
+================================================================================
+ÉTAPE 4: EXÉCUTER LE SCRIPT DE MIGRATION
+================================================================================
+
+COMMANDE 1 (Rendre le script exécutable):
+================================================================================
+chmod +x quick-migrate.sh
+
+(Donne la permission d'exécuter le script)
+
+================================================================================
+COMMANDE 2 (Exécuter la migration):
+================================================================================
+./quick-migrate.sh
+
+(Attends 30-60 secondes - Le script va traiter ~8000 fichiers HTML)
+
+================================================================================
+ÉTAPE 5: VÉRIFIER QUE LA MIGRATION A MARCHÉ
+================================================================================
+
+COMMANDE 1 (Chercher le nouveau branding):
+================================================================================
+grep -r 'data-theme="messoins"' pharmaciecourcelles-demours-paris.mesoigner.fr/ | wc -l
+
+(Doit afficher un grand nombre, ex: 1000+)
+
+================================================================================
+COMMANDE 2 (Chercher les anciennes URLs):
+================================================================================
+grep -r "https://cdn.mesoigner.fr" pharmaciecourcelles-demours-paris.mesoigner.fr/ | wc -l
+
+(Doit afficher: 0 ou très petit nombre)
+
+================================================================================
+ÉTAPE 6: TESTER LE SITE
+================================================================================
+
+COMMANDE 1 (Lancer le serveur Laravel):
+================================================================================
+php artisan serve
+
+(Puis ouvre: http://localhost:8000)
+(Vérifier que le site s'affiche correctement)
+
+================================================================================
+COMMANDE 2 (Arrêter le serveur):
+================================================================================
+Ctrl + C
+
+(Pour arrêter le serveur, appuie sur Ctrl et C en même temps)
+
+================================================================================
+C'EST FINI! 🎉
+================================================================================
+
+Résumé en 7 commandes:
+
+1. mkdir -p public/assets/css
+2. curl -o public/assets/css/scripts.3e902af8.css "https://cdn.mesoigner.fr/dist/front_pharmacies/scripts.3e902af8.css"
+3. curl -o public/assets/css/mesoigner.6063c722.css "https://cdn.mesoigner.fr/dist/front_pharmacies/mesoigner.6063c722.css"
+4. chmod +x quick-migrate.sh
+5. ./quick-migrate.sh
+6. grep -r 'data-theme="messoins"' pharmaciecourcelles-demours-paris.mesoigner.fr/ | wc -l
+7. php artisan serve
+
+================================================================================
