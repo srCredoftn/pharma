@@ -1,0 +1,275 @@
+================================================================================
+                    🚀 QUICK REFERENCE - CARTE DE RÉFÉRENCE RAPIDE
+================================================================================
+
+MIGRATION: pharmaciecourcelles-demours-paris.mesoigner.fr → pharmacie-campguezo-cotonou.messoins.bj
+DURÉE: 5-10 minutes
+DIFFICULTÉ: Débutant (copier/coller)
+
+================================================================================
+                              COMMANDES ESSENTIELLES
+================================================================================
+
+ÉTAPE 0: SAUVEGARDE (OBLIGATOIRE!)
+────────────────────────────────────
+cp -r pharmaciecourcelles-demours-paris.mesoigner.fr \
+      pharmaciecourcelles-demours-paris.mesoigner.fr.backup
+
+
+ÉTAPE 1: CRÉER STRUCTURE
+────────────────────────
+mkdir -p public/assets/{css,uploads,fonts,media}
+touch public/assets/css/{scripts.3e902af8.css,mesoigner.6063c722.css}
+
+
+ÉTAPE 2: MIGRER (CHOISIR UNE OPTION)
+──────────────────────────────────────
+
+OPTION A: Python (RECOMMANDÉ)
+  python3 scripts/migrate_complete.py
+  → Répondre: oui
+
+OPTION B: Bash
+  chmod +x migrate-cdn-complete.sh
+  ./migrate-cdn-complete.sh
+
+OPTION C: sed (manuel)
+  for f in $(find pharmaciecourcelles-demours-paris.mesoigner.fr -name "*.html"); do
+    sed -i.bak \
+      -e 's|https://cdn\.mesoigner\.fr|https://cdn.messoins.bj|g' \
+      -e 's|data-theme="mesoigner"|data-theme="messoins"|g' \
+      -e 's|pharmaciecourcelles-demours-paris\.mesoigner\.fr|pharmacie-campguezo-cotonou.messoins.bj|g' \
+      "$f"; rm "${f}.bak"
+  done
+
+
+ÉTAPE 3: RENOMMER DOSSIER
+──────────────────────────
+mv pharmaciecourcelles-demours-paris.mesoigner.fr \
+   pharmacie-campguezo-cotonou.messoins.bj
+
+
+ÉTAPE 4: VÉRIFIER
+──────────────────
+./MIGRATION_VERIFY.sh
+
+Ou manuellement:
+  grep -r 'data-theme="messoins"' pharmacie-campguezo-cotonou.messoins.bj/ | wc -l
+  # Doit retourner: 1000+
+
+  grep -r "pharmaciecourcelles-demours-paris" pharmacie-campguezo-cotonou.messoins.bj/ | wc -l
+  # Doit retourner: 0
+
+  grep -r "https://cdn\.mesoigner\.fr" pharmacie-campguezo-cotonou.messoins.bj/ | wc -l
+  # Doit retourner: 0
+
+
+ÉTAPE 5: TESTER
+────────────────
+php artisan serve
+# Ouvrir: http://localhost:8000/pharmacie-campguezo-cotonou.messoins.bj/
+# Vérifier: Logo, CSS, images, pas d'erreurs F12
+
+
+ÉTAPE 6: CONFIG LARAVEL (optionnel)
+──────────────────────────────────────
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+================================================================================
+                            COMMANDES DE SECOURS
+================================================================================
+
+RESTAURER SI ERREUR:
+───────────────────
+chmod +x MIGRATION_ROLLBACK.sh
+./MIGRATION_ROLLBACK.sh
+# Répondre: oui
+
+
+VÉRIFIER L'ÉTAT:
+────────────────
+chmod +x MIGRATION_VERIFY.sh
+./MIGRATION_VERIFY.sh
+
+
+CHERCHER PROBLÈMES:
+───────────────────
+# Ancien domaine restant
+grep -r "pharmaciecourcelles" pharmacie-campguezo-cotonou.messoins.bj/
+
+# Ancien CDN restant
+grep -r "cdn\.mesoigner\.fr" pharmacie-campguezo-cotonou.messoins.bj/
+
+# Logo
+grep -r "logo-messoins" pharmacie-campguezo-cotonou.messoins.bj/ | wc -l
+
+# Data-theme
+grep -r 'data-theme="messoins"' pharmacie-campguezo-cotonou.messoins.bj/ | wc -l
+
+
+NETTOYER (APRÈS SUCCÈS):
+────────────────────────
+# Supprimer la sauvegarde
+rm -rf pharmaciecourcelles-demours-paris.mesoigner.fr.backup
+
+# Supprimer les fichiers .bak si présents
+find . -name "*.bak" -delete
+
+================================================================================
+                              REMPLACEMENTS
+================================================================================
+
+DOMAINE:
+  pharmaciecourcelles-demours-paris.mesoigner.fr
+                              ↓
+  pharmacie-campguezo-cotonou.messoins.bj
+
+DATA-THEME:
+  data-theme="mesoigner"
+                    ↓
+  data-theme="messoins"
+
+LOGO:
+  logo-mesoigner     → logo-messoins
+  mesoigner.svg      → messoins.svg
+
+CSS/JS:
+  https://cdn.mesoigner.fr/dist/front_pharmacies/scripts.3e902af8.css
+                              ↓
+  /assets/css/scripts.3e902af8.css
+
+CDN GÉNÉRAL:
+  https://cdn.mesoigner.fr/
+                    ↓
+  https://cdn.messoins.bj/
+
+================================================================================
+                            VÉRIFICATIONS RAPIDES
+================================================================================
+
+✅ Sauvegarde existe?
+   ls pharmaciecourcelles-demours-paris.mesoigner.fr.backup/
+
+✅ Dossier renommé?
+   ls pharmacie-campguezo-cotonou.messoins.bj/
+
+✅ Ancien dossier supprimé?
+   test ! -d pharmaciecourcelles-demours-paris.mesoigner.fr && echo "OK"
+
+✅ CSS existent?
+   ls -la public/assets/css/
+
+✅ Nouveau branding appliqué?
+   grep 'data-theme="messoins"' pharmacie-campguezo-cotonou.messoins.bj/index.html
+
+✅ Ancien domaine supprimé?
+   ! grep -r "pharmaciecourcelles" pharmacie-campguezo-cotonou.messoins.bj/ && echo "OK"
+
+✅ Serveur marche?
+   php artisan serve
+
+================================================================================
+                            FICHIERS IMPORTANTS
+================================================================================
+
+COMMANDES:
+  COMMANDES_SIMPLES.md          - Juste les commandes
+  MIGRATION_EXECUTION_STEPS.md   - Étapes rapides
+  MIGRATION_COMPLETE_GUIDE.md    - Guide détaillé
+
+SCRIPTS:
+  scripts/migrate_complete.py    - Migration Python (recommandé)
+  migrate-cdn-complete.sh        - Migration Bash
+  MIGRATION_VERIFY.sh            - Vérification
+  MIGRATION_ROLLBACK.sh          - Restauration
+
+APRÈS:
+  MIGRATION_POST_EXECUTION.md    - Test et vérification
+  MIGRATION_FAQ.md               - Questions fréquentes
+
+RÉFÉRENCE:
+  MIGRATION_INDEX.md             - Index complet
+  MIGRATION_QUICK_REFERENCE.txt  - Ce fichier
+
+================================================================================
+                            TROUBLESHOOTING EXPRESS
+================================================================================
+
+Python manquant?
+  → python scripts/migrate_complete.py
+  → Ou utiliser: chmod +x migrate-cdn-complete.sh && ./migrate-cdn-complete.sh
+
+Dossier ne se renomme pas?
+  chmod -R 755 pharmaciecourcelles-demours-paris.mesoigner.fr
+  mv pharmaciecourcelles-demours-paris.mesoigner.fr \
+     pharmacie-campguezo-cotonou.messoins.bj
+
+CSS ne charge pas?
+  ��� Vérifier: ls -la public/assets/css/
+  → Vérifier: Chemins dans HTML commencent par /assets/
+
+Logo n'affiche pas?
+  → Vérifier: grep "logo-messoins" pharmacie-campguezo-cotonou.messoins.bj/index.html
+  → Créer placeholder: echo '<svg></svg>' > public/assets/uploads/logo-messoins.svg
+
+Erreurs en console F12?
+  → Chercher: 404 sur assets
+  → Consulter: MIGRATION_POST_EXECUTION.md
+
+Quelque chose s'est cassé?
+  → Exécuter: chmod +x MIGRATION_ROLLBACK.sh && ./MIGRATION_ROLLBACK.sh
+
+================================================================================
+                            CHECKLIST ULTIME
+================================================================================
+
+PRÉ-MIGRATION:
+  ☐ Créer sauvegarde: cp -r ... ...backup
+  ☐ Vérifier espace: df -h .
+  ☐ Vérifier Python: python3 --version
+
+MIGRATION:
+  ☐ Exécuter script: python3 scripts/migrate_complete.py
+  ☐ Renommer dossier: mv ... ...
+  ☐ Laisser terminer (5-10 min)
+
+POST-MIGRATION:
+  ☐ Vérifier: ./MIGRATION_VERIFY.sh
+  ☐ Tester: php artisan serve
+  ☐ Vérifier console F12 (Ctrl+Shift+K)
+  ☐ Vérifier logo, CSS, images
+  ☐ Config Laravel: php artisan config:cache
+
+PRODUCTION:
+  ☐ Tout testé localement
+  ☐ Vérifications réussies
+  ☐ DNS mis à jour
+  ☐ SSL configuré
+  ☐ Déployer en prod
+
+================================================================================
+                            ENCORE DES QUESTIONS?
+================================================================================
+
+Lire d'abord:     START_HERE_MIGRATION.md
+Pas sûr?          MIGRATION_READY_CHECKLIST.md
+Rapide?           MIGRATION_EXECUTION_STEPS.md
+Détaillé?         MIGRATION_COMPLETE_GUIDE.md
+Dépannage?        MIGRATION_COMPLETE_GUIDE.md (section Dépannage)
+Après migr?       MIGRATION_POST_EXECUTION.md
+Questions?        MIGRATION_FAQ.md
+Index complet?    MIGRATION_INDEX.md
+
+================================================================================
+                          VOUS ÊTES PRÊT! 🚀
+================================================================================
+
+Commencez par la SAUVEGARDE, puis suivez les étapes.
+
+Durée estimée: 5-10 minutes
+Difficultés: Rarement (avec sauvegarde + rollback disponible)
+
+Bonne chance! 🎉
+================================================================================
