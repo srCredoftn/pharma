@@ -24,3 +24,5 @@ app-release.aab
 coverage/
 _ide_helper.php
 .phpstorm.meta.php
+.backups/
+replacements-*.json
