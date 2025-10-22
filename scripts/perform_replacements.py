@@ -126,6 +126,82 @@ def rename_logo_files(root: Path, dry_run: bool, include_hidden: bool, exclude_d
     return renamed
 
 
+def process_all_files(root, args, backup_dir, include_ext, exclude_dirs):
+    """Traiter tous les fichiers et retourner le résumé"""
+    summary = {
+        "root": str(root),
+        "dry_run": args.dry_run,
+        "backup_dir": str(backup_dir) if backup_dir else None,
+        "include_ext": sorted(include_ext),
+        "exclude_dirs": sorted(exclude_dirs),
+        "include_hidden": args.include_hidden,
+        "rename_files": args.rename_files,
+        "files": [],
+        "totals": {r["name"]: 0 for r in REPLACEMENTS},
+        "renamed_files": [],
+    }
+
+    file_count = 0
+    modified_count = 0
+
+    # Parcours avec gestion robuste des erreurs
+    for path in root.rglob('*'):
+        try:
+            if path.is_dir():
+                if path.name in exclude_dirs:
+                    continue
+                if not args.include_hidden and path.name.startswith('.'):
+                    continue
+                continue
+            if not path.is_file():
+                continue
+
+            if not should_process_file(path, include_ext, args.include_hidden):
+                continue
+
+            if is_binary_file(path):
+                continue
+
+            file_count += 1
+            text, enc = try_read_text(path)
+            if text is None:
+                continue
+
+            changed, new_text, per_rule, delta = apply_replacements_to_text(text)
+            if changed:
+                if not args.dry_run:
+                    try:
+                        if backup_dir:
+                            ensure_backup(path, backup_dir)
+                        path.write_text(new_text, encoding=enc or "utf-8")
+                        modified_count += 1
+                    except IOError as io_err:
+                        # Log l'erreur mais continue
+                        summary["files"].append({
+                            "path": str(path),
+                            "encoding": enc,
+                            "error": f"IOError lors de l'écriture: {str(io_err)}",
+                        })
+                        continue
+
+                summary["files"].append({
+                    "path": str(path),
+                    "encoding": enc,
+                    "changes": per_rule,
+                })
+                for k, v in per_rule.items():
+                    summary["totals"][k] += v
+
+                if modified_count % 100 == 0 and modified_count > 0:
+                    print(f"  ✓ {modified_count} fichiers modifiés...")
+
+        except Exception as e:
+            # Ignorer les erreurs et continuer
+            pass
+
+    return summary, file_count, modified_count
+
+
 def main():
     parser = argparse.ArgumentParser(description="Remplacements de domaine, logo et thème à travers le projet")
     parser.add_argument("--root", default=".", help="Racine du projet (chemin relatif)")
@@ -144,6 +220,10 @@ def main():
     include_ext = {e.strip().lower() if e.strip().startswith('.') else f".{e.strip().lower()}" for e in args.include_ext.split(',') if e.strip()}
     exclude_dirs = {d.strip() for d in args.exclude_dirs.split(',') if d.strip()}
 
+    if not root.exists() or not root.is_dir():
+        print(f"Racine invalide: {root}", file=sys.stderr)
+        sys.exit(1)
+
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup_dir = None
     if not args.no_backup and not args.dry_run:
@@ -152,67 +232,12 @@ def main():
 
     json_log_path = Path(args.json_log) if args.json_log else Path(f"replacements-log-{timestamp}.json")
 
-    summary = {
-        "root": str(root),
-        "dry_run": args.dry_run,
-        "backup_dir": str(backup_dir) if backup_dir else None,
-        "include_ext": sorted(include_ext),
-        "exclude_dirs": sorted(exclude_dirs),
-        "include_hidden": args.include_hidden,
-        "rename_files": args.rename_files,
-        "files": [],
-        "totals": {r["name"]: 0 for r in REPLACEMENTS},
-        "renamed_files": [],
-    }
-
-    if not root.exists() or not root.is_dir():
-        print(f"Racine invalide: {root}", file=sys.stderr)
-        sys.exit(1)
-
-    # Parcours
-    for path in root.rglob('*'):
-        try:
-            if path.is_dir():
-                # Contrôle basique via nom du dossier courant
-                if path.name in exclude_dirs:
-                    continue
-                if not args.include_hidden and path.name.startswith('.'):
-                    continue
-                continue
-            if not path.is_file():
-                continue
-
-            if not should_process_file(path, include_ext, args.include_hidden):
-                continue
-
-            if is_binary_file(path):
-                continue
-
-            text, enc = try_read_text(path)
-            if text is None:
-                continue
-
-            changed, new_text, per_rule, delta = apply_replacements_to_text(text)
-            if changed:
-                if not args.dry_run:
-                    if backup_dir:
-                        ensure_backup(path, backup_dir)
-                    path.write_text(new_text, encoding=enc or "utf-8")
-                summary["files"].append({
-                    "path": str(path),
-                    "encoding": enc,
-                    "changes": per_rule,
-                })
-                for k, v in per_rule.items():
-                    summary["totals"][k] += v
-        except Exception as e:
-            summary["files"].append({
-                "path": str(path),
-                "error": str(e),
-            })
+    print("🔄 Traitement des fichiers...")
+    summary, file_count, modified_count = process_all_files(root, args, backup_dir, include_ext, exclude_dirs)
 
     # Renommage éventuel des fichiers 'logo-mesoigner*'
     if args.rename_files:
+        print("📝 Renommage des fichiers contenant 'logo-mesoigner'...")
         renamed = rename_logo_files(root, args.dry_run, args.include_hidden, exclude_dirs)
         summary["renamed_files"] = renamed
 
@@ -220,17 +245,21 @@ def main():
     try:
         with open(json_log_path, 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
-        print(f"Rapport écrit: {json_log_path}")
+        print(f"✓ Rapport écrit: {json_log_path}")
     except Exception as e:
-        print(f"Impossible d'écrire le rapport JSON: {e}", file=sys.stderr)
+        print(f"⚠ Impossible d'écrire le rapport JSON: {e}", file=sys.stderr)
 
     # Résumé console
-    print("\nRésumé des remplacements:")
+    print(f"\n📊 Résumé ({file_count} fichiers traités, {modified_count} modifiés):")
     for rule in REPLACEMENTS:
         name = rule["name"]
-        print(f"- {name}: {summary['totals'].get(name, 0)} occurrences remplacées")
+        count = summary["totals"].get(name, 0)
+        print(f"  ✓ {name}: {count} occurrences remplacées")
     if args.rename_files:
-        print(f"- fichiers renommés: {len(summary['renamed_files'])}")
+        print(f"  ✓ fichiers renommés: {len(summary['renamed_files'])}")
+
+    if not args.dry_run:
+        print("\n✅ Remplacements appliqués avec succès!")
 
 
 if __name__ == "__main__":
