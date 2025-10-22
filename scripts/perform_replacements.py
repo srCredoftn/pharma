@@ -265,10 +265,10 @@ def main():
     print("🔄 Traitement des fichiers...")
     summary, file_count, modified_count = process_all_files(root, args, backup_dir, include_ext, exclude_dirs)
 
-    # Renommage éventuel des fichiers 'logo-mesoigner*'
+    # Renommage des dossiers et fichiers
     if args.rename_files:
-        print("📝 Renommage des fichiers contenant 'logo-mesoigner'...")
-        renamed = rename_logo_files(root, args.dry_run, args.include_hidden, exclude_dirs)
+        print("📝 Renommage des dossiers et fichiers...")
+        renamed = rename_directories_and_files(root, args.dry_run)
         summary["renamed_files"] = renamed
 
     # Log JSON
