@@ -102,27 +102,57 @@ def apply_replacements_to_text(text: str):
     return changed, new_text, per_rule, total_delta
 
 
-def rename_logo_files(root: Path, dry_run: bool, include_hidden: bool, exclude_dirs: set):
+def rename_directories_and_files(root: Path, dry_run: bool):
     renamed = []
-    for d in root.rglob('*'):
-        if d.is_dir():
-            if not should_visit_dir(d, exclude_dirs, include_hidden):
-                # Skip descente dans ce dossier
-                # Optimisation: ne pas descendre dans les dossiers exclus
-                # En rglob, on ne peut pas stopper la descente facilement sans walk manuel
-                pass
-            continue
-        if d.is_file() and "logo-mesoigner" in d.name:
-            new_name = d.name.replace("logo-mesoigner", "logo-messoins")
-            new_path = d.with_name(new_name)
-            if dry_run:
-                renamed.append({"from": str(d), "to": str(new_path)})
-            else:
-                try:
-                    d.rename(new_path)
-                    renamed.append({"from": str(d), "to": str(new_path)})
-                except Exception as e:
-                    renamed.append({"from": str(d), "to": str(new_path), "error": str(e)})
+    domain_mapping = [
+        ("pharmaciecourcelles-demours-paris.mesoigner.fr", "pharmacie-campguezo-cotonou.messoins.bj"),
+    ]
+    file_mapping = [
+        ("logo-mesoigner", "logo-messoins"),
+    ]
+
+    # Renommer les dossiers d'abord (de manière récursive)
+    items_to_rename = []
+    for path in root.rglob('*'):
+        if path.is_dir():
+            new_name = path.name
+            for old, new in domain_mapping + file_mapping:
+                if old in new_name:
+                    new_name = new_name.replace(old, new)
+
+            if new_name != path.name:
+                items_to_rename.append((path, new_name, "directory"))
+        elif path.is_file():
+            new_name = path.name
+            for old, new in file_mapping:
+                if old in new_name:
+                    new_name = new_name.replace(old, new)
+
+            if new_name != path.name:
+                items_to_rename.append((path, new_name, "file"))
+
+    # Trier par profondeur (plus profond d'abord pour les dossiers)
+    items_to_rename.sort(key=lambda x: (x[2] != "directory", -len(x[0].parts)))
+
+    # Appliquer les renommages
+    for path, new_name, item_type in items_to_rename:
+        new_path = path.with_name(new_name)
+        if dry_run:
+            renamed.append({"from": str(path), "to": str(new_path), "type": item_type})
+        else:
+            try:
+                path.rename(new_path)
+                renamed.append({"from": str(path), "to": str(new_path), "type": item_type})
+                print(f"  ✓ Renommé {item_type}: {path.name} → {new_name}")
+            except Exception as e:
+                renamed.append({
+                    "from": str(path),
+                    "to": str(new_path),
+                    "type": item_type,
+                    "error": str(e)
+                })
+                print(f"  ✗ Erreur renommage {item_type} {path.name}: {e}")
+
     return renamed
 
 
